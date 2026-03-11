@@ -14,16 +14,66 @@ import {
     Modal,
     Center,
     Divider,
-    List,
     Skeleton,
+    Box,
 } from '@mantine/core'
+import { IconSparkles } from '@tabler/icons-react'
 import { SingleProvider, useSingle } from 'asasvirtuais/react-interface'
 import { schema, type Character } from '@/app/characters'
+import { useUser } from '@auth0/nextjs-auth0/client'
+import { useCharacter } from '@/app/characters/provider'
+import { notifications } from '@mantine/notifications'
+import { useRouter } from 'next/navigation'
 
 // --- Character Detail View ---
 
-function CharacterSheet() {
+function CharacterSheet({ 
+    claimTriggered, 
+    claimSuccess, 
+    setClaimSuccess 
+}: { 
+    claimTriggered?: boolean, 
+    claimSuccess: boolean, 
+    setClaimSuccess: (val: boolean) => void 
+}) {
     const { single, loading } = useSingle('characters', schema) as { single: Character | null, loading: boolean }
+    const { user } = useUser()
+    const router = useRouter()
+    const [claiming, setClaiming] = React.useState(false)
+
+    // Auto-claim if returning from login with ?claim=true
+    React.useEffect(() => {
+        if (claimTriggered && user && single && !single.owner && !claiming && !claimSuccess) {
+            handleClaim()
+        }
+    }, [claimTriggered, user, single])
+
+    const { update } = useCharacter()
+
+    const handleClaim = async () => {
+        if (!single || !user?.sub) return
+        setClaiming(true)
+        try {
+            await update.trigger({ 
+                id: single.id, 
+                data: { owner: user.sub } as any 
+            })
+            setClaimSuccess(true)
+            notifications.show({
+                title: 'Success!',
+                message: `${single.name} is now yours.`,
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: 'Claim Failed',
+                message: error.message,
+                color: 'red',
+            })
+        } finally {
+            setClaiming(false)
+        }
+    }
 
     if (loading || !single) {
         return (
@@ -91,18 +141,34 @@ function CharacterSheet() {
                     </Text>
                 )}
 
-                {/* Chat CTA */}
-                <Center>
+                {/* Chat & Claim CTA */}
+                <Button
+                    component="a"
+                    href={`/characters/${character.id}/chat`}
+                    color="violet"
+                    variant="light"
+                    size="md"
+                >
+                    Chat with {character.name}
+                </Button>
+
+                {!character.owner && (
                     <Button
-                        component="a"
-                        href={`/characters/${character.id}/chat`}
-                        color="violet"
-                        variant="light"
+                        color="orange"
+                        variant="filled"
                         size="md"
+                        loading={claiming}
+                        onClick={() => {
+                            if (user) {
+                                handleClaim()
+                            } else {
+                                window.location.href = `/auth/login?returnTo=${encodeURIComponent(window.location.pathname + '?claim=true')}`
+                            }
+                        }}
                     >
-                        Chat with {character.name}
+                        Claim this Character
                     </Button>
-                </Center>
+                )}
 
                 <Divider />
 
@@ -189,62 +255,121 @@ function CharacterSheet() {
 
 // --- Claim Modal ---
 
-function ClaimModal({ character, open }: { character: Character | null, open: boolean }) {
+function ClaimModal({ 
+    character, 
+    open, 
+    onClose, 
+    success 
+}: { 
+    character: Character | null, 
+    open: boolean, 
+    onClose: () => void, 
+    success: boolean 
+}) {
     if (!character) return null
+    const { user } = useUser()
+    const router = useRouter()
 
     return (
         <Modal
             opened={open}
-            onClose={() => {}}
-            withCloseButton={false}
+            onClose={onClose}
+            withCloseButton={success}
             centered
             size="sm"
             overlayProps={{ backgroundOpacity: 0.7, blur: 8 }}
         >
             <Stack align="center" gap="md" p="md">
-                {character.image?.url && (
-                    <Image
-                        src={character.image.url}
-                        alt={character.image.alt}
-                        radius="md"
-                        w={180}
-                        h={240}
-                        fit="cover"
-                    />
+                {success ? (
+                    <Stack align="center" gap="sm">
+                        <Box p="md" style={{ borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)' }}>
+                            <IconSparkles size={40} color="var(--mantine-color-violet-5)" />
+                        </Box>
+                        <Title order={3} ta="center">Successfully Claimed!</Title>
+                        <Text size="sm" c="dimmed" ta="center">
+                            {character.name} is now part of your collection.
+                        </Text>
+                        <Button
+                            color="violet"
+                            size="md"
+                            fullWidth
+                            onClick={() => {
+                                router.replace(`/characters/${character.id}`)
+                                onClose()
+                            }}
+                        >
+                            See Character
+                        </Button>
+                    </Stack>
+                ) : (
+                    <>
+                        {character.image?.url && (
+                            <Image
+                                src={character.image.url}
+                                alt={character.image.alt}
+                                radius="md"
+                                w={180}
+                                h={240}
+                                fit="cover"
+                            />
+                        )}
+                        <Box>
+                            <Text size="sm" c="dimmed" ta="center">
+                                You have been gifted a character.
+                            </Text>
+                            <Title order={3} ta="center">{character.name}</Title>
+                        </Box>
+                        {character.label && (
+                            <Badge color="violet" variant="light">{character.label}</Badge>
+                        )}
+                        <Text size="sm" c="dimmed" ta="center">
+                            {character.definition}
+                        </Text>
+
+                        {user ? (
+                            <Button
+                                color="violet"
+                                size="md"
+                                fullWidth
+                                onClick={() => window.location.reload()} // The effect in CharacterSheet will handle it
+                            >
+                                Claim Now
+                            </Button>
+                        ) : (
+                            <Button
+                                color="violet"
+                                size="md"
+                                fullWidth
+                                component="a"
+                                href={`/auth/login?returnTo=${encodeURIComponent(window.location.pathname + '?claim=true')}`}
+                            >
+                                Login to Claim
+                            </Button>
+                        )}
+                    </>
                 )}
-                <Text size="sm" c="dimmed" ta="center">
-                    You have been gifted a character.
-                </Text>
-                <Title order={3} ta="center">{character.name}</Title>
-                {character.label && (
-                    <Badge color="violet" variant="light">{character.label}</Badge>
-                )}
-                <Text size="sm" c="dimmed" ta="center">
-                    {character.definition}
-                </Text>
-                <Button
-                    color="violet"
-                    size="md"
-                    fullWidth
-                    component="a"
-                    href="/auth/login"
-                >
-                    Claim this Character
-                </Button>
             </Stack>
         </Modal>
     )
 }
 
-// --- Page Wrapper ---
-
 function CharacterPageInner({ claim }: { claim: boolean }) {
     const { single } = useSingle('characters', schema) as { single: Character | null }
+    const [claimSuccess, setClaimSuccess] = React.useState(false)
 
     return (
         <>
-            <CharacterSheet />
-            <ClaimModal character={single} open={claim} />
+            <CharacterSheet 
+                claimTriggered={claim} 
+                claimSuccess={claimSuccess} 
+                setClaimSuccess={setClaimSuccess} 
+            />
+            <ClaimModal 
+                character={single} 
+                open={claim} 
+                onClose={() => setClaimSuccess(false)}
+                success={claimSuccess}
+            />
         </>
     )
 }

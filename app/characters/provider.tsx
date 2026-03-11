@@ -27,3 +27,7 @@ export function CharactersProvider({
 export function useCharacters() {
   return useTable('characters', schema)
 }
+
+export function useCharacter() {
+  return useTable('characters', schema)
+}

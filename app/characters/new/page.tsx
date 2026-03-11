@@ -14,7 +14,8 @@ import { schema } from '@/app/characters'
 import type { Writable } from 'asasvirtuais-characters'
 import { z } from 'zod'
 import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
-import { FileButton, Divider, Loader, Image, Center, Badge, Group, Button, Stack, Text, Title, Container, Stepper, Card, Textarea } from '@mantine/core'
+import { useUser } from '@auth0/nextjs-auth0/client'
+import { FileButton, Divider, Loader, Image, Center, Badge, Group, Button, Stack, Text, Title, Container, Stepper, Card, Textarea, Box } from '@mantine/core'
 import { IconUpload, IconSparkles, IconUser, IconSettings, IconPhoto, IconCheck, IconRocket } from '@tabler/icons-react'
 
 const generationSchema = z.object({
@@ -34,6 +35,7 @@ type GeneratedOutput = z.infer<typeof generationSchema>
 const GEMINI_API_BASE = 'https://asasvirtuais.dev/api/gemini'
 
 export default function NewCharacterPage() {
+    const { user, isLoading: authLoading } = useUser()
     const [step, setStep] = useState(0)
     const [idea, setIdea] = useState('')
     const [generated, setGenerated] = useState<Writable | null>(null)
@@ -49,8 +51,43 @@ export default function NewCharacterPage() {
         reader.readAsDataURL(file)
     }
 
+    if (authLoading) {
+        return (
+            <Center py="100px">
+                <Loader size="xl" color="violet" />
+            </Center>
+        )
+    }
+
+    if (!user) {
+        return (
+            <Container size="sm" py="100px">
+                <Card withBorder p="xl" radius="md" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <Stack align="center" gap="lg">
+                        <Box p="md" style={{ borderRadius: '50%', background: 'rgba(128, 90, 213, 0.1)' }}>
+                            <IconUser size={40} color="var(--mantine-color-violet-5)" />
+                        </Box>
+                        <Stack align="center" gap={4}>
+                            <Title order={2}>Members Only</Title>
+                            <Text c="dimmed" ta="center">You must be signed in to create and save new characters to the chronicle.</Text>
+                        </Stack>
+                        <Button
+                            size="lg"
+                            color="violet"
+                            component="a"
+                            href={`/auth/login?returnTo=${encodeURIComponent('/characters/new')}`}
+                        >
+                            Sign In / Sign Up
+                        </Button>
+                    </Stack>
+                </Card>
+            </Container>
+        )
+    }
+
     return (
         <Container size="sm" py="xl">
+            {/* Existing content */}
             <Stack gap="xl">
                 <Stack gap={0} align="center">
                     <Title order={1} style={{ letterSpacing: '-0.02em', fontSize: '2.5rem' }}>
@@ -352,13 +389,23 @@ export default function NewCharacterPage() {
                                                         Send this link to gift the character:
                                                     </Text>
                                                     <Card withBorder p="md" radius="md" bg="dark.6">
-                                                        <Text size="sm" ta="center" ff="monospace" style={{ wordBreak: 'break-all', letterSpacing: '0.02em' }}>
+                                                        <Text c='white' size="sm" ta="center" ff="monospace" style={{ wordBreak: 'break-all', letterSpacing: '0.02em' }}>
                                                             {typeof window !== 'undefined' ? window.location.origin : ''}/characters/{createdId}?claim
                                                         </Text>
                                                     </Card>
                                                 </Stack>
 
                                                 <Group justify="center" mt="md">
+                                                    <Button
+                                                        variant="filled"
+                                                        color="violet"
+                                                        size="lg"
+                                                        component="a"
+                                                        href={`/characters/${createdId}`}
+                                                    >
+                                                        See Character
+                                                    </Button>
+
                                                     <Button
                                                         variant="light"
                                                         color="violet"
