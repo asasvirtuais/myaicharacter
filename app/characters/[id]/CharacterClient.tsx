@@ -15,9 +15,16 @@ import {
     Divider,
     Skeleton,
     Box,
+    Textarea,
+    TextInput,
+    TagsInput,
+    ActionIcon,
+    Group,
+    Tooltip,
 } from '@mantine/core'
-import { IconSparkles } from '@tabler/icons-react'
-import { SingleProvider, useSingle } from 'asasvirtuais/react-interface'
+import { IconSparkles, IconEdit, IconCheck, IconX, IconEye, IconMarkdown } from '@tabler/icons-react'
+import ReactMarkdown from 'react-markdown'
+import { SingleProvider, useSingle, UpdateForm } from 'asasvirtuais/react-interface'
 import { schema, type Character } from '@/app/characters'
 import { useUser } from '@auth0/nextjs-auth0/client'
 import { useCharacter } from '@/app/characters/provider'
@@ -39,6 +46,8 @@ function CharacterSheet({
     const { user } = useUser()
     const router = useRouter()
     const [claiming, setClaiming] = React.useState(false)
+    const [isEditing, setIsEditing] = React.useState(false)
+    const isOwner = user?.sub && single?.owner === user.sub
 
     // Auto-claim if returning from login with ?claim=true
     React.useEffect(() => {
@@ -134,10 +143,24 @@ function CharacterSheet({
                 </Stack>
 
                 {/* Definition / Bio */}
-                {character.definition && (
+                {character.definition && !isEditing && (
                     <Text c="dimmed" size="sm" ta="left">
                         {character.definition}
                     </Text>
+                )}
+
+                {/* Edit Toggle */}
+                {isOwner && (
+                    <Group justify="center">
+                        <Button
+                            leftSection={isEditing ? <IconEye size={16} /> : <IconEdit size={16} />}
+                            variant="light"
+                            color={isEditing ? 'gray' : 'violet'}
+                            onClick={() => setIsEditing(!isEditing)}
+                        >
+                            {isEditing ? 'View Mode' : 'Edit Character'}
+                        </Button>
+                    </Group>
                 )}
 
                 {/* Chat & Claim CTA */}
@@ -171,82 +194,140 @@ function CharacterSheet({
 
                 <Divider />
 
-                {/* Tabs: Sheet | Notes | Lore | Activity | Logs | Gallery */}
-                <Tabs defaultValue="sheet" color="violet">
-                    <Tabs.List grow>
-                        <Tabs.Tab value="sheet">Sheet</Tabs.Tab>
-                        <Tabs.Tab value="notes">
-                            Notes {character.notes?.length ? `(${character.notes.length})` : ''}
-                        </Tabs.Tab>
-                        <Tabs.Tab value="lore">Lore</Tabs.Tab>
-                        <Tabs.Tab value="activity">Activity</Tabs.Tab>
-                        <Tabs.Tab value="logs">Logs</Tabs.Tab>
-                        <Tabs.Tab value="gallery">Gallery</Tabs.Tab>
-                    </Tabs.List>
+                {isEditing && isOwner && single ? (
+                    <UpdateForm table="characters" schema={schema} id={single.id} onSuccess={() => setIsEditing(false)}>
+                        {({ fields, setField, submit, loading }) => (
+                            <Stack gap="md">
+                                <Stack gap="xs">
+                                    <TextInput label="Name" value={fields.name} onChange={(e) => setField('name', e.target.value)} />
+                                    <TextInput label="Label" value={fields.label} onChange={(e) => setField('label', e.target.value)} />
+                                    <Textarea label="Bio" value={fields.definition} onChange={(e) => setField('definition', e.target.value)} autosize minRows={2} />
+                                </Stack>
 
-                    <Tabs.Panel value="sheet" pt="md">
-                        <Card withBorder p="md" radius="md">
-                            <Text
-                                size="sm"
-                                style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}
-                            >
-                                {character.details || 'No character sheet yet.'}
-                            </Text>
-                        </Card>
-                    </Tabs.Panel>
+                                <Tabs defaultValue="sheet" color="violet">
+                                    <Tabs.List grow>
+                                        <Tabs.Tab value="sheet">Sheet & Details</Tabs.Tab>
+                                        <Tabs.Tab value="notes">Notes</Tabs.Tab>
+                                    </Tabs.List>
 
-                    <Tabs.Panel value="notes" pt="md">
-                        {character.notes?.length ? (
-                            <Stack gap="xs">
-                                {character.notes.map((note: string, i: number) => (
-                                    <Card key={i} withBorder p="sm" radius="sm">
-                                        <Text size="sm">{note}</Text>
-                                    </Card>
-                                ))}
+                                    <Tabs.Panel value="sheet" pt="md">
+                                        <Card withBorder p="md" radius="md">
+                                            <Stack gap="xs">
+                                                <Group justify="space-between" align="center">
+                                                    <Text size="xs" fw={700} tt="uppercase" c="dimmed">Character Sheet (Markdown)</Text>
+                                                    <IconMarkdown size={18} opacity={0.5} />
+                                                </Group>
+                                                <Textarea
+                                                    placeholder="Write character sheet in markdown..."
+                                                    value={fields.details}
+                                                    onChange={(e) => setField('details', e.target.value)}
+                                                    autosize
+                                                    minRows={10}
+                                                    styles={{ input: { fontFamily: 'monospace', fontSize: '13px' } }}
+                                                />
+                                                <Divider label="Preview" labelPosition="center" />
+                                                <Box p="xs" bg="dark.7" style={{ borderRadius: 'var(--mantine-radius-sm)', border: '1px solid var(--mantine-color-dark-4)' }}>
+                                                    <div className="markdown-preview" style={{ fontSize: '14px', lineHeight: 1.6 }}>
+                                                        <ReactMarkdown>{fields.details || '_Preview will appear here_'}</ReactMarkdown>
+                                                    </div>
+                                                </Box>
+                                            </Stack>
+                                        </Card>
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="notes" pt="md">
+                                        <Stack gap="md">
+                                            <TagsInput
+                                                label="Character Notes"
+                                                placeholder="Enter and press enter to add notes"
+                                                value={fields.notes}
+                                                onChange={(val) => setField('notes', val)}
+                                            />
+                                            <Text size="xs" c="dimmed">These notes are displayed in short cards in the view mode.</Text>
+                                        </Stack>
+                                    </Tabs.Panel>
+                                </Tabs>
+
+                                <Button fullWidth size="md" color="violet" loading={loading} onClick={() => submit()}>
+                                    Save Character
+                                </Button>
                             </Stack>
-                        ) : (
-                            <Text c="dimmed" size="sm" ta="center" py="xl">
-                                No notes yet.
-                            </Text>
                         )}
-                    </Tabs.Panel>
+                    </UpdateForm>
+                ) : (
+                    <Tabs defaultValue="sheet" color="violet">
+                        <Tabs.List grow>
+                            <Tabs.Tab value="sheet">Sheet</Tabs.Tab>
+                            <Tabs.Tab value="notes">
+                                Notes {character.notes?.length ? `(${character.notes.length})` : ''}
+                            </Tabs.Tab>
+                            <Tabs.Tab value="lore">Lore</Tabs.Tab>
+                            <Tabs.Tab value="activity">Activity</Tabs.Tab>
+                            <Tabs.Tab value="logs">Logs</Tabs.Tab>
+                            <Tabs.Tab value="gallery">Gallery</Tabs.Tab>
+                        </Tabs.List>
 
-                    <Tabs.Panel value="lore" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No records yet. Your story is waiting to be written.
-                        </Text>
-                    </Tabs.Panel>
+                        <Tabs.Panel value="sheet" pt="md">
+                            <Card withBorder p="md" radius="md">
+                                <div className="markdown-content" style={{ lineHeight: 1.7 }}>
+                                    <ReactMarkdown>{character.details || 'No character sheet yet.'}</ReactMarkdown>
+                                </div>
+                            </Card>
+                        </Tabs.Panel>
 
-                    <Tabs.Panel value="activity" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No activity recorded.
-                        </Text>
-                    </Tabs.Panel>
+                        <Tabs.Panel value="notes" pt="md">
+                            {character.notes?.length ? (
+                                <Stack gap="xs">
+                                    {character.notes.map((note: string, i: number) => (
+                                        <Card key={i} withBorder p="sm" radius="sm">
+                                            <Text size="sm">{note}</Text>
+                                        </Card>
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Text c="dimmed" size="sm" ta="center" py="xl">
+                                    No notes yet.
+                                </Text>
+                            )}
+                        </Tabs.Panel>
 
-                    <Tabs.Panel value="logs" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No logs recorded.
-                        </Text>
-                    </Tabs.Panel>
-
-                    <Tabs.Panel value="gallery" pt="md">
-                        {character.image?.url ? (
-                            <Center>
-                                <Image
-                                    src={character.image.url}
-                                    alt={character.image.alt}
-                                    radius="md"
-                                    maw={400}
-                                    fit="contain"
-                                />
-                            </Center>
-                        ) : (
+                        <Tabs.Panel value="lore" pt="md">
                             <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                                No images yet.
+                                No records yet. Your story is waiting to be written.
                             </Text>
-                        )}
-                    </Tabs.Panel>
-                </Tabs>
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="activity" pt="md">
+                            <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
+                                No activity recorded.
+                            </Text>
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="logs" pt="md">
+                            <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
+                                No logs recorded.
+                            </Text>
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="gallery" pt="md">
+                            {character.image?.url ? (
+                                <Center>
+                                    <Image
+                                        src={character.image.url}
+                                        alt={character.image.alt}
+                                        radius="md"
+                                        maw={400}
+                                        fit="contain"
+                                    />
+                                </Center>
+                            ) : (
+                                <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
+                                    No images yet.
+                                </Text>
+                            )}
+                        </Tabs.Panel>
+                    </Tabs>
+                )}
             </Stack>
         </Container>
     )
