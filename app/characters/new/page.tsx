@@ -30,7 +30,7 @@ import type { Writable } from 'asasvirtuais-characters'
 
 import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
 
-const GEMINI_API_BASE = 'https://asasvirtuais.com/api/gemini'
+const GEMINI_API_BASE = 'https://asasvirtuais.dev/api/gemini'
 
 export default function NewCharacterPage() {
     const [step, setStep] = useState(0)
@@ -108,7 +108,7 @@ export default function NewCharacterPage() {
                                             defaults={{
                                                 ...generated,
                                                 image: {
-                                                    alt: imageResult?.alt || generated.image?.alt || '',
+                                                    alt: generated.image?.alt || '',
                                                     url: imageResult?.url || generated.image?.url || '',
                                                 }
                                             } as any}
@@ -117,7 +117,7 @@ export default function NewCharacterPage() {
                                                 setStep(2)
                                             }}
                                         >
-                                            {(form: any) => (
+                                            {(form) => (
                                                 <Stack gap="md">
                                                     <Center>
                                                         <Stack align="center" gap="xs">
@@ -138,43 +138,45 @@ export default function NewCharacterPage() {
                                                                     }}
                                                                 />
                                                             )}
-                                                            <Button 
-                                                                variant="subtle" 
-                                                                size="compact-xs" 
+                                                            <Button
+                                                                variant="subtle"
+                                                                size="compact-xs"
                                                                 color="violet"
                                                                 loading={imageLoading}
-                                                                onClick={() => regenerateImage(form.fields.image?.alt)}
+                                                                onClick={() => regenerateImage(form.fields.image?.alt || '')}
                                                             >
                                                                 Regenerate Image
                                                             </Button>
                                                         </Stack>
                                                     </Center>
-                                            <NameField />
-                                            <LabelField />
-                                            <DefinitionField />
-                                            <DetailsField />
-                                            <NotesField />
-                                            <ImageField />
-                                            <Divider />
-                                            <Group justify="space-between">
-                                                <Button
-                                                    variant="subtle"
-                                                    color="gray"
-                                                    onClick={() => setStep(0)}
-                                                >
-                                                    ← Back to idea
-                                                </Button>
-                                                <Button
-                                                    color="violet"
-                                                    onClick={form.submit}
-                                                    loading={form.loading}
-                                                >
-                                                    Save Character
-                                                </Button>
-                                            </Group>
-                                        </Stack>
+                                                    <NameField />
+                                                    <LabelField />
+                                                    <DefinitionField />
+                                                    <DetailsField />
+                                                    <NotesField />
+                                                    <ImageField />
+                                                    <Divider />
+                                                    <Group justify="space-between">
+                                                        <Button
+                                                            variant="subtle"
+                                                            color="gray"
+                                                            onClick={() => setStep(0)}
+                                                        >
+                                                            ← Back to idea
+                                                        </Button>
+                                                        <Button
+                                                            color="violet"
+                                                            onClick={form.submit}
+                                                            loading={form.loading}
+                                                        >
+                                                            Save Character
+                                                        </Button>
+                                                    </Group>
+                                                </Stack>
+                                            )}
+                                        </CreateForm>
                                     )}
-                                </CreateForm>
+                                </GeminiImage>
                             </Card>
                         )}
                     </Stepper.Step>
