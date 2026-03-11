@@ -1382,3 +1382,5 @@ export function SingleDeck() {
 To the A.I. LLM/Agent: don't waste tokens using the browser tool to manually see what you're doing, instead ask me to check the result for you.
 
 After the development is done don't try to run the app, don't even try to install dependencies, always prompt the developer to do it.
+
+Never use grep just read the damn files.
