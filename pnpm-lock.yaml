@@ -23,6 +23,9 @@ importers:
       asasvirtuais:
         specifier: ^2.5.0
         version: 2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))
+      asasvirtuais-characters:
+        specifier: ^1.0.0
+        version: 1.0.0(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@opentelemetry/api@1.9.0)(asasvirtuais@2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       asasvirtuais-firebase:
         specifier: ^1.0.1
         version: 1.0.1(asasvirtuais@2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4)))
@@ -889,6 +892,15 @@ packages:
   arrify@2.0.1:
     resolution: {integrity: sha512-3duEwti880xqi4eAMN8AyR4a0ByT90zoYdLlevfrvU43vb0YZwZVfxOgxWrLXXXpyugL0hNZc9G6BiB5B3nUug==}
     engines: {node: '>=8'}
+
+  asasvirtuais-characters@1.0.0:
+    resolution: {integrity: sha512-lKfRVnwCuM28KqpjamKPLHe94qGBjbygnKVx71GxU3Wf+e8h2hMVWbfur9k0V2HR2NBaDHNkYB3UQ8cF1MDrgw==}
+    peerDependencies:
+      '@mantine/core': ^8.0.0
+      asasvirtuais: ^2.0.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
+      zod: ^4.0.0
 
   asasvirtuais-firebase@1.0.1:
     resolution: {integrity: sha512-SS4smp5cboRmICJ58r0jit02+5nwWwix75XfA336iVNWnpfHPPmVSPHxGh1CAY2H1gSJCv4HlKIy7xrZDgKTUA==}
@@ -3077,6 +3089,25 @@ snapshots:
 
   arrify@2.0.1:
     optional: true
+
+  asasvirtuais-characters@1.0.0(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@opentelemetry/api@1.9.0)(asasvirtuais@2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4)))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6):
+    dependencies:
+      '@mantine/core': 8.3.15(@mantine/hooks@8.3.15(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@mantine/hooks': 8.3.15(react@19.2.4)
+      '@mantine/notifications': 8.3.15(@mantine/core@8.3.15(@mantine/hooks@8.3.15(react@19.2.4))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@mantine/hooks@8.3.15(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      asasvirtuais: 2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))
+      next: 16.1.1(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-icons: 5.5.0(react@19.2.4)
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@opentelemetry/api'
+      - '@playwright/test'
+      - babel-plugin-macros
+      - babel-plugin-react-compiler
+      - sass
 
   asasvirtuais-firebase@1.0.1(asasvirtuais@2.5.0(@emotion/react@11.14.0(@types/react@19.2.14)(react@19.2.4))(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))):
     dependencies:
