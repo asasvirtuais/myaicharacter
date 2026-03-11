@@ -28,43 +28,15 @@ import { CreateForm } from 'asasvirtuais/react-interface'
 import { schema } from '@/app/characters'
 import type { Writable } from 'asasvirtuais-characters'
 
-// Mock AI generation — will be replaced with real Gemini call
-async function mockGenerate(idea: string): Promise<Writable> {
-    await new Promise(r => setTimeout(r, 1500))
-    const name = idea.split(' ').slice(0, 2).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Unnamed'
-    return {
-        name,
-        label: 'The Wanderer',
-        definition: `A mysterious figure born from the idea: "${idea.slice(0, 60)}..."`,
-        details: `${name} walks the thin edge between worlds.\n\nBorn under a crimson sky, they carry the weight of prophecy. Their journey began in the borderlands where reality thins and ancient powers seep through the cracks. Known among travelers as a figure of both hope and dread, they walk the line between light and shadow with practiced ease.\n\nPersonality: Calm under pressure, fiercely loyal, with a dry wit that surfaces in the worst moments. Struggles with trust but will protect allies without hesitation.\n\nBackground: Raised by a traveling merchant who found them abandoned at a crossroads. Trained in both blade and word, equally dangerous in a tavern brawl and a royal court.`,
-        notes: [
-            'Carries a sealed letter — never opened',
-            'Left eye glows faintly in darkness',
-            'Allergic to healing potions',
-            'Speaks an unknown dialect in sleep',
-            'Wanted in two provinces',
-        ],
-        image: {
-            alt: `Portrait of ${name}, a wandering figure. Fantasy character portrait, dramatic lighting, painterly style.`,
-            url: `https://placehold.co/400x533/2a1a3a/e0c0ff?text=${encodeURIComponent(name)}`,
-        },
-    }
-}
+import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
+
+const GEMINI_API_BASE = 'https://asasvirtuais.com/api/gemini'
 
 export default function NewCharacterPage() {
     const [step, setStep] = useState(0)
     const [idea, setIdea] = useState('')
     const [generated, setGenerated] = useState<Writable | null>(null)
-    const [generating, setGenerating] = useState(false)
     const [createdId, setCreatedId] = useState<string | null>(null)
-
-    async function handleGenerate() {
-        setGenerating(true)
-        const result = await mockGenerate(idea)
-        setGenerated(result)
-        setGenerating(false)
-        setStep(1)
-    }
 
     return (
         <Container size="sm" py="xl">
@@ -76,71 +48,107 @@ export default function NewCharacterPage() {
                 <Stepper active={step} onStepClick={setStep} size="sm" color="violet">
                     {/* Step 0: Idea */}
                     <Stepper.Step label="Idea" description="Describe your character">
-                        <Card withBorder p="lg" mt="md" radius="md">
-                            <Stack gap="md">
-                                <Text c="dimmed" size="sm">
-                                    Tell me about the character you have in mind. A sentence, a vibe, a full backstory — whatever you have.
-                                </Text>
-                                <Textarea
-                                    placeholder="A blind oracle who trades prophecies for memories..."
-                                    minRows={4}
-                                    autosize
-                                    maxRows={8}
-                                    value={idea}
-                                    onChange={e => setIdea(e.target.value)}
-                                    styles={{
-                                        input: { fontSize: '1rem', lineHeight: 1.6 },
-                                    }}
-                                />
-                                <Group justify="flex-end">
-                                    {generating ? (
-                                        <Button color="violet" loading>
-                                            Generating...
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            color="violet"
-                                            onClick={handleGenerate}
-                                            disabled={!idea.trim()}
-                                        >
-                                            ✦ Generate Character
-                                        </Button>
-                                    )}
-                                </Group>
-                            </Stack>
-                        </Card>
+                        <GeminiObject<Writable>
+                            api={`${GEMINI_API_BASE}/object`}
+                            schema={schema.writable}
+                            instructions="Generate a complete character record based on the user's idea. The output must follow the schema provided. Be creative and detailed in the 'details' field. 'notes' should be an array of short, interesting facts or attributes."
+                        >
+                            {({ submit, object, isLoading }) => (
+                                <Card withBorder p="lg" mt="md" radius="md">
+                                    <Stack gap="md">
+                                        <Text c="dimmed" size="sm">
+                                            Tell me about the character you have in mind. A sentence, a vibe, a full backstory — whatever you have.
+                                        </Text>
+                                        <Textarea
+                                            placeholder="A blind oracle who trades prophecies for memories..."
+                                            minRows={4}
+                                            autosize
+                                            maxRows={8}
+                                            value={idea}
+                                            onChange={e => setIdea(e.target.value)}
+                                            styles={{
+                                                input: { fontSize: '1rem', lineHeight: 1.6 },
+                                            }}
+                                        />
+                                        <Group justify="flex-end">
+                                            <Button
+                                                color="violet"
+                                                loading={isLoading}
+                                                onClick={async () => {
+                                                    const result = await submit(idea)
+                                                    if (result) {
+                                                        setGenerated(result)
+                                                        setStep(1)
+                                                    }
+                                                }}
+                                                disabled={!idea.trim() || isLoading}
+                                            >
+                                                ✦ Generate Character
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                </Card>
+                            )}
+                        </GeminiObject>
                     </Stepper.Step>
 
                     {/* Step 1: Review & Save */}
                     <Stepper.Step label="Review" description="Edit & save">
                         {generated && (
                             <Card withBorder p="lg" mt="md" radius="md">
-                                <CreateForm
-                                    table="characters"
-                                    schema={schema}
-                                    defaults={generated as any}
-                                    onSuccess={(character: any) => {
-                                        setCreatedId(character.id)
-                                        setStep(2)
-                                    }}
+                                <GeminiImage
+                                    api={`${GEMINI_API_BASE}/image`}
+                                    prompt={generated.image?.alt || `Portrait of ${generated.name}, ${generated.label}. ${generated.definition}`}
+                                    autoTrigger
                                 >
-                                    {(form: any) => (
-                                        <Stack gap="md">
-                                            {generated.image?.url && (
-                                                <Center>
-                                                    <Image
-                                                        src={generated.image.url}
-                                                        alt={generated.image.alt}
-                                                        radius="md"
-                                                        w={200}
-                                                        h={267}
-                                                        fit="cover"
-                                                        style={{
-                                                            boxShadow: '0 4px 20px rgba(128, 90, 213, 0.15)',
-                                                        }}
-                                                    />
-                                                </Center>
-                                            )}
+                                    {({ result: imageResult, loading: imageLoading, submit: regenerateImage }) => (
+                                        <CreateForm
+                                            table="characters"
+                                            schema={schema}
+                                            defaults={{
+                                                ...generated,
+                                                image: {
+                                                    alt: imageResult?.alt || generated.image?.alt || '',
+                                                    url: imageResult?.url || generated.image?.url || '',
+                                                }
+                                            } as any}
+                                            onSuccess={(character: any) => {
+                                                setCreatedId(character.id)
+                                                setStep(2)
+                                            }}
+                                        >
+                                            {(form: any) => (
+                                                <Stack gap="md">
+                                                    <Center>
+                                                        <Stack align="center" gap="xs">
+                                                            {imageLoading ? (
+                                                                <Center w={200} h={267} bg="gray.1" style={{ borderRadius: '8px' }}>
+                                                                    <Loader size="sm" />
+                                                                </Center>
+                                                            ) : (
+                                                                <Image
+                                                                    src={form.fields.image?.url || 'https://placehold.co/400x533?text=Generating...'}
+                                                                    alt={form.fields.image?.alt}
+                                                                    radius="md"
+                                                                    w={200}
+                                                                    h={267}
+                                                                    fit="cover"
+                                                                    style={{
+                                                                        boxShadow: '0 4px 20px rgba(128, 90, 213, 0.15)',
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <Button 
+                                                                variant="subtle" 
+                                                                size="compact-xs" 
+                                                                color="violet"
+                                                                loading={imageLoading}
+                                                                onClick={() => regenerateImage(form.fields.image?.alt)}
+                                                            >
+                                                                Regenerate Image
+                                                            </Button>
+                                                        </Stack>
+                                                    </Center>
                                             <NameField />
                                             <LabelField />
                                             <DefinitionField />
