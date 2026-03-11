@@ -74,21 +74,3 @@ export const remove = async (props: any) => {
     return baseInterface.remove(props)
 }
 
-export const claimCharacter = async (id: string) => {
-    const session = await auth0.getSession()
-    if (!session?.user) {
-        throw new Error('Unauthorized')
-    }
-
-    const character = await baseInterface.find({ table: 'characters', id })
-    
-    if (character.owner) {
-        throw new Error('This character is already owned.')
-    }
-
-    return baseInterface.update({
-        table: 'characters',
-        id,
-        data: { owner: session.user.id } as any
-    })
-}

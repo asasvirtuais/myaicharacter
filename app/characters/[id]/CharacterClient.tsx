@@ -9,7 +9,6 @@ import {
     Badge,
     Tabs,
     Card,
-    Group,
     Button,
     Modal,
     Center,
@@ -46,7 +45,7 @@ function CharacterSheet({
         if (claimTriggered && user && single && !single.owner && !claiming && !claimSuccess) {
             handleClaim()
         }
-    }, [claimTriggered, user, single, claiming, claimSuccess])
+    }, [claimTriggered, user, single])
 
     const { update } = useCharacter()
 
@@ -266,9 +265,9 @@ function ClaimModal({
     onClose: () => void, 
     success: boolean 
 }) {
-    if (!character) return null
     const { user } = useUser()
     const router = useRouter()
+    if (!character) return null
 
     return (
         <Modal
