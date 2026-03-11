@@ -27,10 +27,24 @@ import {
 import { CreateForm } from 'asasvirtuais/react-interface'
 import { schema } from '@/app/characters'
 import type { Writable } from 'asasvirtuais-characters'
-
+import { z } from 'zod'
 import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
 
-const GEMINI_API_BASE = 'https://asasvirtuais.dev/api/gemini'
+const generationSchema = z.object({
+    name: z.string().describe("Full name of the character (e.g. 'Kaelen Varg')"),
+    label: z.string().describe("A title or archetype (e.g. 'Barbarian of the Iron-Spine')"),
+    definition: z.string().describe("A snappy one-line bio for listings"),
+    details: z.string().describe("A single, long string containing the full character sheet, backstory and personality. DO NOT return an object here, JUST TEXT."),
+    notes: z.array(z.string()).describe("An array of short string facts"),
+    image: z.object({
+        alt: z.string().describe("Portrait description for AI generation"),
+    }),
+})
+
+type GeneratedOutput = z.infer<typeof generationSchema>
+
+const GEMINI_API_BASE = 'http://localhost:3001/api/gemini'
+// const GEMINI_API_BASE = 'https://asasvirtuais.dev/api/gemini'
 
 export default function NewCharacterPage() {
     const [step, setStep] = useState(0)
@@ -48,10 +62,10 @@ export default function NewCharacterPage() {
                 <Stepper active={step} onStepClick={setStep} size="sm" color="violet">
                     {/* Step 0: Idea */}
                     <Stepper.Step label="Idea" description="Describe your character">
-                        <GeminiObject<Writable>
+                        <GeminiObject<GeneratedOutput>
                             api={`${GEMINI_API_BASE}/object`}
-                            schema={schema.writable}
-                            instructions="Generate a complete character record based on the user's idea. The output must follow the schema provided. Be creative and detailed in the 'details' field. 'notes' should be an array of short, interesting facts or attributes."
+                            schema={generationSchema}
+                            instructions="YOU MUST return ALL fields. Include 'name', 'label' (archetype), 'definition' (one-liner), 'details' (HUGE raw text backstory), 'notes' (array), and MUST provide a 'image.alt' field with a very detailed visual portrait description."
                         >
                             {({ submit, object, isLoading }) => (
                                 <Card withBorder p="lg" mt="md" radius="md">
@@ -77,7 +91,14 @@ export default function NewCharacterPage() {
                                                 onClick={async () => {
                                                     const result = await submit(idea)
                                                     if (result) {
-                                                        setGenerated(result)
+                                                        const writableResult: Writable = {
+                                                            ...result,
+                                                            image: {
+                                                                alt: result.image.alt,
+                                                                url: '', // Will be filled by GeminiImage later
+                                                            }
+                                                        }
+                                                        setGenerated(writableResult)
                                                         setStep(1)
                                                     }
                                                 }}
@@ -101,22 +122,26 @@ export default function NewCharacterPage() {
                                     prompt={generated.image?.alt || `Portrait of ${generated.name}, ${generated.label}. ${generated.definition}`}
                                     autoTrigger
                                 >
-                                    {({ result: imageResult, loading: imageLoading, submit: regenerateImage }) => (
-                                        <CreateForm
-                                            table="characters"
-                                            schema={schema}
-                                            defaults={{
-                                                ...generated,
-                                                image: {
-                                                    alt: generated.image?.alt || '',
-                                                    url: imageResult?.url || generated.image?.url || '',
-                                                }
-                                            } as any}
-                                            onSuccess={(character: any) => {
-                                                setCreatedId(character.id)
-                                                setStep(2)
-                                            }}
-                                        >
+                                    {({ result: imageResult, loading: imageLoading, submit: regenerateImage }) => {
+                                        // useMemo to prevent infinite loops caused by fresh object literals in defaults
+                                        const formDefaults = React.useMemo(() => ({
+                                            ...generated,
+                                            image: {
+                                                alt: generated.image?.alt || '',
+                                                url: imageResult?.url || generated.image?.url || '',
+                                            }
+                                        }), [generated, imageResult?.url])
+
+                                        return (
+                                            <CreateForm
+                                                table="characters"
+                                                schema={schema}
+                                                defaults={formDefaults as any}
+                                                onSuccess={(character: any) => {
+                                                    setCreatedId(character.id)
+                                                    setStep(2)
+                                                }}
+                                            >
                                             {(form) => (
                                                 <Stack gap="md">
                                                     <Center>
@@ -173,9 +198,10 @@ export default function NewCharacterPage() {
                                                         </Button>
                                                     </Group>
                                                 </Stack>
-                                            )}
-                                        </CreateForm>
-                                    )}
+                                                )}
+                                            </CreateForm>
+                                        )
+                                    }}
                                 </GeminiImage>
                             </Card>
                         )}
