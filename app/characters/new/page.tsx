@@ -17,6 +17,7 @@ import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
 import { useUser } from '@auth0/nextjs-auth0/client'
 import { FileButton, Divider, Loader, Image, Center, Badge, Group, Button, Stack, Text, Title, Container, Stepper, Card, Textarea, Box } from '@mantine/core'
 import { IconUpload, IconSparkles, IconUser, IconSettings, IconPhoto, IconCheck, IconRocket } from '@tabler/icons-react'
+import { notifications } from '@mantine/notifications'
 
 const generationSchema = z.object({
     name: z.string().describe("Full name of the character (e.g. 'Kaelen Varg')"),
@@ -257,13 +258,28 @@ export default function NewCharacterPage() {
                                             prompt={form.fields.image?.alt || `${form.fields.name}, ${form.fields.label}. ${form.fields.definition}`}
                                             autoTrigger={!form.fields.image?.url}
                                         >
-                                            {({ result: imgResult, loading: imgLoading, submit: triggerGen }) => {
+                                            {({ result: imgResult, loading: imgLoading, submit: triggerGen, error: imgError }) => {
                                                 // Sync Gemini result to form
                                                 React.useEffect(() => {
                                                     if (imgResult?.url && form.fields.image?.url !== imgResult.url) {
                                                         form.setField('image', { alt: form.fields.image?.alt || '', url: imgResult.url } as any)
                                                     }
                                                 }, [imgResult?.url])
+
+                                                // Error handling
+                                                React.useEffect(() => {
+                                                    if (imgError) {
+                                                        console.error('Gemini Image Error:', imgError)
+                                                        notifications.show({
+                                                            title: 'Generation Error',
+                                                            message: imgError.message.includes('API_KEY') || imgError.message.includes('key') 
+                                                                ? 'A paid Gemini API Key is required for high-quality image generation. Check your configuration.' 
+                                                                : `Failed to generate image: ${imgError.message}`,
+                                                            color: 'red',
+                                                            autoClose: 10000,
+                                                        })
+                                                    }
+                                                }, [imgError])
 
                                                 return (
                                                     <Stack gap="xl">
