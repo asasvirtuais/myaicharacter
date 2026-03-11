@@ -17,10 +17,8 @@ import {
     Box,
     Textarea,
     TextInput,
-    TagsInput,
     ActionIcon,
     Group,
-    Tooltip,
 } from '@mantine/core'
 import { IconSparkles, IconEdit, IconCheck, IconX, IconEye, IconMarkdown, IconPlus, IconTrash } from '@tabler/icons-react'
 import ReactMarkdown from 'react-markdown'
@@ -39,59 +37,117 @@ function EditableValue({
     value = '', 
     children, 
     isOwner,
-    multiline = false
+    multiline = false,
+    align = 'center',
+    placeholder = 'Enter value...'
 }: { 
     id: string, 
     fieldName: string, 
     value?: string, 
     children: React.ReactNode, 
     isOwner: boolean,
-    multiline?: boolean
+    multiline?: boolean,
+    align?: 'center' | 'left',
+    placeholder?: string
 }) {
     const [editing, setEditing] = React.useState(false)
+    const [hovered, setHovered] = React.useState(false)
 
     if (!isOwner) return <>{children}</>
 
     if (editing) {
         return (
-            <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
+            <Box style={{ width: '100%', maxWidth: multiline ? '100%' : '400px', margin: align === 'center' ? '0 auto' : undefined }}>
                 <UpdateForm table="characters" schema={schema} id={id} onSuccess={() => setEditing(false)} defaults={{ [fieldName]: value }}>
                     {({ fields, setField, submit, loading }) => (
-                        <Group gap="xs" align="flex-end">
+                        <Stack gap={8}>
                             {multiline ? (
                                 <Textarea 
-                                    style={{ flex: 1 }}
+                                    placeholder={placeholder}
                                     value={fields[fieldName as keyof typeof fields] as string} 
                                     onChange={(e) => setField(fieldName as any, e.target.value)}
                                     autosize
                                     minRows={2}
+                                    autoFocus
+                                    styles={{
+                                        input: { 
+                                            borderColor: 'var(--mantine-color-violet-4)',
+                                            '&:focus': { borderColor: 'var(--mantine-color-violet-5)' }
+                                        }
+                                    }}
                                 />
                             ) : (
                                 <TextInput 
-                                    style={{ flex: 1 }}
+                                    placeholder={placeholder}
                                     value={fields[fieldName as keyof typeof fields] as string} 
                                     onChange={(e) => setField(fieldName as any, e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => e.key === 'Enter' && submit()}
+                                    styles={{
+                                        input: { 
+                                            textAlign: align,
+                                            borderColor: 'var(--mantine-color-violet-4)',
+                                        }
+                                    }}
                                 />
                             )}
-                            <ActionIcon color="green" onClick={() => submit()} loading={loading}>
-                                <IconCheck size={16} />
-                            </ActionIcon>
-                            <ActionIcon color="red" variant="light" onClick={() => setEditing(false)}>
-                                <IconX size={16} />
-                            </ActionIcon>
-                        </Group>
+                            <Group gap={6} justify={align === 'center' ? 'center' : 'flex-end'}>
+                                <Button 
+                                    size="xs" 
+                                    variant="light" 
+                                    color="gray" 
+                                    onClick={() => setEditing(false)}
+                                    leftSection={<IconX size={14} />}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    size="xs" 
+                                    color="violet" 
+                                    onClick={() => submit()} 
+                                    loading={loading}
+                                    leftSection={<IconCheck size={14} />}
+                                >
+                                    Save
+                                </Button>
+                            </Group>
+                        </Stack>
                     )}
                 </UpdateForm>
-            </div>
+            </Box>
         )
     }
 
     return (
-        <Tooltip label="Click to edit" position="top" openDelay={500}>
-            <Box onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderRadius: '4px' }} p={4}>
-                {children}
-            </Box>
-        </Tooltip>
+        <Box 
+            onClick={() => setEditing(true)} 
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{ 
+                cursor: 'pointer', 
+                borderRadius: '8px',
+                position: 'relative',
+                transition: 'background 0.2s ease',
+                background: hovered ? 'rgba(139, 92, 246, 0.06)' : 'transparent',
+            }} 
+            px={10}
+            py={6}
+        >
+            {children}
+            {hovered && (
+                <Box
+                    style={{
+                        position: 'absolute',
+                        top: 4,
+                        right: 4,
+                        opacity: 0.5,
+                        transition: 'opacity 0.2s ease',
+                    }}
+                >
+                    <IconEdit size={14} color="var(--mantine-color-violet-4)" />
+                </Box>
+            )}
+        </Box>
     )
 }
 
@@ -284,53 +340,15 @@ function EditableNotes({ id, notes, isOwner }: { id: string, notes: string[], is
 // --- Character Detail View ---
 
 function CharacterSheet({ 
-    claimTriggered, 
-    claimSuccess, 
-    setClaimSuccess 
+    claiming,
+    onClaim 
 }: { 
-    claimTriggered?: boolean, 
-    claimSuccess: boolean, 
-    setClaimSuccess: (val: boolean) => void 
+    claiming: boolean,
+    onClaim: () => void 
 }) {
     const { single, loading } = useSingle('characters', schema) as { single: Character | null, loading: boolean }
     const { user } = useUser()
-    const router = useRouter()
-    const [claiming, setClaiming] = React.useState(false)
     const isOwner = !!(user?.sub && single?.owner === user.sub)
-
-    // Auto-claim if returning from login with ?claim=true
-    React.useEffect(() => {
-        if (claimTriggered && user && single && !single.owner && !claiming && !claimSuccess) {
-            handleClaim()
-        }
-    }, [claimTriggered, user, single])
-
-    const { update } = useCharacter()
-
-    const handleClaim = async () => {
-        if (!single || !user?.sub) return
-        setClaiming(true)
-        try {
-            await update.trigger({ 
-                id: single.id, 
-                data: { owner: user.sub } as any 
-            })
-            setClaimSuccess(true)
-            notifications.show({
-                title: 'Success!',
-                message: `${single.name} is now yours.`,
-                color: 'green',
-            })
-        } catch (error: any) {
-            notifications.show({
-                title: 'Claim Failed',
-                message: error.message,
-                color: 'red',
-            })
-        } finally {
-            setClaiming(false)
-        }
-    }
 
     if (loading || !single) {
         return (
@@ -386,6 +404,7 @@ function CharacterSheet({
                         fieldName="name"
                         value={character.name || ''}
                         isOwner={isOwner}
+                        placeholder="Character name"
                     >
                         <Title order={1} ta="center" style={{ letterSpacing: '-0.02em' }}>
                             {character.name}
@@ -397,13 +416,14 @@ function CharacterSheet({
                         fieldName="label"
                         value={character.label || ''}
                         isOwner={isOwner}
+                        placeholder="e.g. Dark Sorcerer, Elven Healer"
                     >
                         {character.label ? (
-                            <Badge color="violet" variant="light" size="lg" style={{ cursor: isOwner ? 'pointer' : 'default' }}>
+                            <Badge color="violet" variant="light" size="lg">
                                 {character.label}
                             </Badge>
                         ) : isOwner ? (
-                            <Badge color="gray" variant="dot" size="lg" style={{ cursor: 'pointer' }}>
+                            <Badge color="gray" variant="dot" size="lg">
                                 Add Label
                             </Badge>
                         ) : null}
@@ -417,14 +437,16 @@ function CharacterSheet({
                     value={character.definition || ''}
                     isOwner={isOwner}
                     multiline
+                    align="left"
+                    placeholder="Write a short bio or description..."
                 >
                     {character.definition ? (
-                        <Text c="dimmed" size="sm" ta="center">
+                        <Text c="dimmed" size="sm" style={{ lineHeight: 1.6 }}>
                             {character.definition}
                         </Text>
                     ) : isOwner ? (
-                        <Text c="dimmed" size="xs" ta="center" fs="italic" style={{ cursor: 'pointer' }}>
-                            Add a short bio...
+                        <Text c="dimmed" size="xs" fs="italic">
+                            Click to add a short bio...
                         </Text>
                     ) : null}
                 </EditableValue>
@@ -449,7 +471,7 @@ function CharacterSheet({
                         loading={claiming}
                         onClick={() => {
                             if (user) {
-                                handleClaim()
+                                onClaim()
                             } else {
                                 window.location.href = `/auth/login?returnTo=${encodeURIComponent(window.location.pathname + '?claim=true')}`
                             }
@@ -536,11 +558,15 @@ function ClaimModal({
     character, 
     open, 
     onClose, 
+    claiming,
+    onClaim,
     success 
 }: { 
     character: Character | null, 
     open: boolean, 
     onClose: () => void, 
+    claiming: boolean,
+    onClaim: () => void,
     success: boolean 
 }) {
     const { user } = useUser()
@@ -551,7 +577,7 @@ function ClaimModal({
         <Modal
             opened={open}
             onClose={onClose}
-            withCloseButton={success}
+            withCloseButton
             centered
             size="sm"
             overlayProps={{ backgroundOpacity: 0.7, blur: 8 }}
@@ -608,7 +634,8 @@ function ClaimModal({
                                 color="violet"
                                 size="md"
                                 fullWidth
-                                onClick={() => window.location.reload()} // The effect in CharacterSheet will handle it
+                                loading={claiming}
+                                onClick={onClaim}
                             >
                                 Claim Now
                             </Button>
@@ -640,19 +667,54 @@ export function CharacterClient({ id, claim }: { id: string, claim: boolean }) {
 
 function CharacterClientInner({ claim }: { claim: boolean }) {
     const { single } = useSingle('characters', schema) as { single: Character | null }
+    const { user } = useUser()
+    const { update } = useCharacter()
+    const [claimModalOpen, setClaimModalOpen] = React.useState(claim)
     const [claimSuccess, setClaimSuccess] = React.useState(false)
+    const [claiming, setClaiming] = React.useState(false)
+
+    const handleClaim = async () => {
+        if (!single || !user?.sub) return
+        setClaiming(true)
+        try {
+            await update.trigger({ 
+                id: single.id, 
+                data: { owner: user.sub } as any 
+            })
+            setClaimSuccess(true)
+            notifications.show({
+                title: 'Success!',
+                message: `${single.name} is now yours.`,
+                color: 'green',
+            })
+        } catch (error: any) {
+            notifications.show({
+                title: 'Claim Failed',
+                message: error.message,
+                color: 'red',
+            })
+        } finally {
+            setClaiming(false)
+        }
+    }
+
+    const handleCloseModal = () => {
+        setClaimModalOpen(false)
+        setClaimSuccess(false)
+    }
 
     return (
         <>
             <CharacterSheet 
-                claimTriggered={claim} 
-                claimSuccess={claimSuccess} 
-                setClaimSuccess={setClaimSuccess} 
+                claiming={claiming}
+                onClaim={handleClaim}
             />
             <ClaimModal 
                 character={single} 
-                open={claim} 
-                onClose={() => setClaimSuccess(false)}
+                open={claimModalOpen} 
+                onClose={handleCloseModal}
+                claiming={claiming}
+                onClaim={handleClaim}
                 success={claimSuccess}
             />
         </>
