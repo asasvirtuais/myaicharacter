@@ -6,8 +6,8 @@ import {
     DefinitionField,
     DetailsField,
     NotesField,
-    ImageField,
 } from 'asasvirtuais-characters/fields'
+import { useFields } from 'asasvirtuais/fields'
 import { SingleCharacter } from 'asasvirtuais-characters/components'
 import { CreateForm, SingleProvider } from 'asasvirtuais/react-interface'
 import { schema } from '@/app/characters'
@@ -16,8 +16,9 @@ import { z } from 'zod'
 import { GeminiObject, GeminiImage } from 'asasvirtuais-gemini'
 import { useUser } from '@auth0/nextjs-auth0/client'
 import { FileButton, Divider, Loader, Image, Center, Badge, Group, Button, Stack, Text, Title, Container, Stepper, Card, Textarea, Box } from '@mantine/core'
-import { IconUpload, IconSparkles, IconUser, IconSettings, IconPhoto, IconCheck, IconRocket } from '@tabler/icons-react'
+import { IconUpload, IconSparkles, IconUser, IconSettings, IconPhoto, IconCheck, IconRocket, IconKey } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
+import { GeminiConfig } from '@/components/GeminiConfig'
 
 const generationSchema = z.object({
     name: z.string().describe("Full name of the character (e.g. 'Kaelen Varg')"),
@@ -35,12 +36,40 @@ type GeneratedOutput = z.infer<typeof generationSchema>
 // const GEMINI_API_BASE = 'http://localhost:3001/api/gemini'
 const GEMINI_API_BASE = 'https://asasvirtuais.dev/api/gemini'
 
+function PortraitField() {
+    const { fields, setField } = useFields<Writable>()
+    return (
+        <Stack gap="xs">
+            <Text size="sm" fw={500}>Visual Portrait Description</Text>
+            <Textarea
+                placeholder="The AI uses this description to generate the portrait. Describe appearance, clothing, and atmosphere."
+                rows={8}
+                value={fields.image?.alt || ''}
+                onChange={e => setField('image', { ...fields.image, alt: e.target.value } as any)}
+            />
+            <Text size="xs" c="dimmed">The image URL will be managed automatically by the generator or your upload.</Text>
+        </Stack>
+    )
+}
+
 export default function NewCharacterPage() {
     const { user, isLoading: authLoading } = useUser()
     const [step, setStep] = useState(0)
     const [idea, setIdea] = useState('')
     const [generated, setGenerated] = useState<Writable | null>(null)
     const [createdId, setCreatedId] = useState<string | null>(null)
+    const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
+
+    React.useEffect(() => {
+        const checkKey = () => {
+            const key = localStorage.getItem('GEMINI_API_KEY')
+            setHasApiKey(!!key)
+        }
+        checkKey()
+        // Listen for storage changes (e.g. from the Config button in header)
+        window.addEventListener('storage', checkKey)
+        return () => window.removeEventListener('storage', checkKey)
+    }, [])
 
     const handleUpload = (file: File | null, setField: (name: any, value: any) => void, currentImage: any) => {
         if (!file) return
@@ -52,7 +81,7 @@ export default function NewCharacterPage() {
         reader.readAsDataURL(file)
     }
 
-    if (authLoading) {
+    if (authLoading || hasApiKey === null) {
         return (
             <Center py="100px">
                 <Loader size="xl" color="violet" />
@@ -79,6 +108,45 @@ export default function NewCharacterPage() {
                             href={`/auth/login?returnTo=${encodeURIComponent('/characters/new')}`}
                         >
                             Sign In / Sign Up
+                        </Button>
+                    </Stack>
+                </Card>
+            </Container>
+        )
+    }
+    if (!hasApiKey && user) {
+        return (
+            <Container size="sm" py="100px">
+                <Card withBorder p="xl" radius="md" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <Stack align="center" gap="lg">
+                        <Box p="md" style={{ borderRadius: '50%', background: 'rgba(128, 90, 213, 0.1)' }}>
+                            <IconKey size={40} color="var(--mantine-color-violet-5)" />
+                        </Box>
+                        <Stack align="center" gap={4}>
+                            <Title order={2}>Qualify for Creation</Title>
+                            <Text c="dimmed" ta="center">To use Gemini AI for character generation, you must provide your own API Key. This ensures high-quality generations and system sustainability.</Text>
+                        </Stack>
+                        <Divider w="100%" />
+                        <Group justify="center">
+                            <GeminiConfig />
+                            <Text size="sm" fw={500}>Click the settings icon to configure your key</Text>
+                        </Group>
+                        <Button
+                            variant="light"
+                            color="violet"
+                            onClick={() => {
+                                const key = localStorage.getItem('GEMINI_API_KEY')
+                                if (key) setHasApiKey(true)
+                                else {
+                                    notifications.show({
+                                        title: 'Key Required',
+                                        message: 'Please configure your Gemini API Key first.',
+                                        color: 'orange'
+                                    })
+                                }
+                            }}
+                        >
+                            I've set my key
                         </Button>
                     </Stack>
                 </Card>
@@ -272,8 +340,8 @@ export default function NewCharacterPage() {
                                                         console.error('Gemini Image Error:', imgError)
                                                         notifications.show({
                                                             title: 'Generation Error',
-                                                            message: imgError.message.includes('API_KEY') || imgError.message.includes('key') 
-                                                                ? 'A paid Gemini API Key is required for high-quality image generation. Check your configuration.' 
+                                                            message: imgError.message.includes('API_KEY') || imgError.message.includes('key')
+                                                                ? 'A paid Gemini API Key is required for high-quality image generation. Check your configuration.'
                                                                 : `Failed to generate image: ${imgError.message}`,
                                                             color: 'red',
                                                             autoClose: 10000,
@@ -345,7 +413,7 @@ export default function NewCharacterPage() {
                                                             </Stack>
                                                         </Center>
 
-                                                        <ImageField />
+                                                        <PortraitField />
 
                                                         <Divider />
 

@@ -4,9 +4,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ['asasvirtuais', 'asasvirtuais-firebase', 'asasvirtuais-characters', 'asasvirtuais-gemini'],
   experimental: {
     serverActions: {
-      bodySizeLimit: '5mb',
+      bodySizeLimit: '10mb',
     },
   },
 }
 
-export default nextConfig;
+export default nextConfig
