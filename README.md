@@ -102,3 +102,31 @@ Because qualified narrator's aren't always available and people often want to po
 
 **Grimoire RPG**
 To make things even more dynamic it would be interesting to make an app where players can build decks to their characters to be used in the above described sessions where one or multiple players could play an async RPG session by going through the encounters described above but instead of having to write the actions of their characters, the player would only have to select the cards of their deck to be used in the encounter, the cards would describe the actions of the character and the A.I. would receive those prompts to dictate the resolution of the encounter. Basically the laziest way to play an RPG sessions with co-workers, distant friends, people who don't want to write their actions just read the encounter, select the cards, read the resolution and maybe text each other to talk about what happened in their "RPG" game. Players who are more heavily interested may build more focused decks to their characters and spend their creativity creating their own cards (wizard assisted) while players who just want to participate may use the decks created by other players or use the default decks provided by the app. The basic cards would be things like "Sword", "Dagger", "Armor", "Shield", "Spell: Fireball", stuff like that that represents the character equipment, powers, abilities, certain actions, etc...
+
+## Next steps
+
+To make these apps possible this app needs to act as a center-hub for character apps to be formulates, meaning this app main goal is to provide APIs and MCP servers to allow other apps to interact with characters created and managed in this platform. The interactions we should strive for here are primarily:
+ - [ ] Read the character sheet/notes (character:read)
+ - [ ] Write to the character sheet/notes (character:write)
+ - [ ] Read the character records (records:read)
+ - [ ] Write to the character records (records:write)
+
+To implement that simply, the characters should have a token that allow all those operations via a single API that also works as an MCP server. The idea is that the MCP provides well described tools that are intuitive for the A.I. app/platform to use, which in and by itself allows for any A.I. chat client to serve as an interface to interact with these characters but doesn't bind the character to any specific platform.
+
+A set of API hooks must also be useful to make the future apps, with things like useCharacter providing the tools to read, write and record a character activity in the apps described above, useCharacterRecords too. Receiving the token as a prop parameter to execute the operations described above.
+
+Interesting app interfaces:
+
+**Lore wizard**
+An interface to insert lore records. This would include a title, markdown editable content and an A.I. image generator.
+
+**Downtime recorder**
+Basic: an interface to simply write what the character did.
+Cool: an interface that tracks how much time the character spent with downtime points.
+Ideal: an interface that lists activities the characters can make in a specific system format (e.g. D&D 5e)
+
+**Trade Log recorder**
+Same idea, basic would be simply you telling what you did and how much gold you spend, cool would be an interface that tracks how much gold the character has, ideal would be an interface that lists items the character can buy/sell in a specific system format (e.g. D&D 5e) same goes for treasure items (epic/unique items).
+
+**Questline manager**
+Ideally the narrators would have a specialized UI to manage multiple participating characters of a questline, with tools (interface) to record lore and log trade, downtime is more of a player thing, so it's not necessary for the narrators to manage that for the players, they should do it themselves to their own character.
