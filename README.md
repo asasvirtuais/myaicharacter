@@ -1,194 +1,95 @@
-# The Chronicle — App Spec (Revised for asasvirtuais)
+# The Chronicle
+
+An invitation-only character chronicle platform. Characters are created as gifts, allowing users to record who a character is and what they have lived through — from their initial sparked concept to their evolving history.
+
+## Current Implementation (v1 Alpha)
+
+### 1. Data Model
+
+The Chronicle tracks characters and their ongoing history:
+
+#### Characters
+- **Core Identity**: Name, Label (archetype), and Definition (short bio).
+- **Character Sheet**: A detailed markdown-based record of traits, history, and personality.
+- **Notes**: A collection of notable facts, abilities, or observations.
+- **Portrait**: A visual representation of the character.
+- **Metadata**: Tracks the original **Author** (creator) and the current **Owner** (player).
+
+#### Records
+- **Lore**: Key story moments and permanent history.
+- **Activity**: Training, growth, and character downtime.
+- **Logs**: Item trades.
 
 ---
 
-## What This Is
+## 2. Platform Features
 
-An invitation-only character chronicle platform built on `asasvirtuais-characters`. Characters are gifted, not self-created. The platform records who a character is and what they've lived through — across RPG sessions, AI conversations, and the invisible world in between.
+### Character Creation Wizard
+A high-fidelity creation flow for authors to craft new legends:
+- **Ideation**: Flesh out a character from a simple vibe or spark of an idea.
+- **Refinement**: Edit identity, sheet details, and specific notes.
+- **Portrait Generation**: Create a visual portrait from a description or upload a custom image.
+- **Gifting**: Generate a unique "Gift Link" for characters with no owner yet.
 
----
+### The Chronicle Sheet
+A centralized view for character interaction:
+- **Interactive Details**: Owners can edit any part of their character in-place.
+- **Markdown Sheet**: A full-featured markdown editor for the main character sheet with live preview.
+- **Note Management**: Manage individual traits and abilities with a simple list interface.
+- **History Tabs**: Dedicated sections for Lore, Activity, and Logs (History recording system).
 
-## Data Model
-
-### Extending `asasvirtuais-characters`
-
-The base package provides: `name`, `label`, `definition`, `details`, `notes`, `image { alt, url }`.
-
-The Chronicle extends this with:
-
-```typescript
-// readable (extends base)
-{
-  id: z.string(),
-  // --- base fields ---
-  name: z.string(),
-  label: z.string(),
-  definition: z.string(),
-  details: z.string(),
-  notes: z.array(z.string()),
-  image: z.object({ alt: z.string(), url: z.string() }),
-  // --- chronicle extensions ---
-  owner: z.string().nullable(),       // Auth0 userId, null until claimed
-  author: z.string(),                 // Auth0 userId of creator
-}
-
-// writable (player-editable fields only)
-{
-  name, label, definition, details, notes, image
-  // owner and author are system-managed, never in writable
-}
-```
-
-### Records Subcollection
-
-```typescript
-{
-  id: z.string(),
-  datetime: z.string(),               // ISO 8601
-  author: z.string(),                 // Auth0 userId
-  type: z.enum(['lore', 'activity', 'log']),
-  // lore     → key story moments. Permanent. The character's true history.
-  // activity → downtime. Growth, crafting, training between sessions.
-  // log      → transactions. Purchases, sales, trades. The paper trail.
-  content: z.string(),
-  approved: z.boolean(),              // defaults true, approval UI incoming
-}
-```
+### Gifting & Claiming
+- **Invitation Flow**: New characters are created without an owner. 
+- **Gift Links**: Authors can share a link with the `?claim` parameter.
+- **Claiming**: When a user visits a gift link, they can claim the character. Once claimed, they become the permanent owner with exclusive editing rights.
 
 ---
 
-## Image Field
+## 3. Security & Ownership
 
-One field. `image: { alt, url }`. The `alt` text is the prompt — it describes the character visually and drives generation. No separate appearance field. The URL is the result. Simple, immutable once set, regenerable by rewriting the alt.
-
-```typescript
-image: z.object({
-  alt: z.string(),   // visual description / generation prompt
-  url: z.string(),   // Vercel Blob URL of generated portrait
-})
-```
+- **Author Rights**: The creator of a character maintains permission to view and delete the character, even after gifting it.
+- **Owner Rights**: The player who claims a character has exclusive rights to edit its identity and history.
 
 ---
 
-## Package Structure
+## 4. How to Use
 
-Following the `asasvirtuais` model package pattern:
+1. **Sign In**: Access requires an invitation/account via Auth0.
+2. **Create**: Use the "Create Character" wizard to spark a new concept.
+3. **Gift**: Share the character page URL with `?claim` to a friend.
+4. **See/Edit**: Once claimed, use the central sheet to edit the character.
 
-```
-src/
-├── index.ts          # Extended schema + types
-├── fields.tsx        # All field components including chronicle extensions
-├── forms.tsx         # CreateCharacter, UpdateCharacter, DeleteCharacter
-├── components.tsx    # CharacterItem, SingleCharacter (with tabs)
-└── provider.tsx      # CharactersProvider + useCharacters
-```
 
----
+## Roadmap
 
-## Routes
+Right now the app has:
+ - Assisted character creation (wizard).
+ - View/claim character page with few options to edit it.
 
-```
-/characters/new           → Create Character (author role only)
-/characters/[id]          → Character Page (view / edit if owner / claim if ?claim)
-/characters/[id]/chat     → placeholder
-```
+The next step is recording the character lore, activity and trade log. These must be displayed differently with lore records being focused on the narrative display of a character most memorable moments, titles, epic deeds and lore relevant interactions, activity is meant to record the spending of downtime points and the logs the spending of gold coins and treasure points.
 
-No home page. No listing. You only arrive here if someone sent you a link.
+This app platform is meant to focus solely on tracking the character sheets and records but in order to make the app interesting for users the following feature/functionalities are going to be developed here before they are moved to their own applications:
+- A chat page to interact with the character (on hold).
+- An Advenurer's Guild app (on hold).
 
----
+The adventurer's guild app is meant to allow players to prepare and participate of RPG sessions in the adventurer's guiild model. The session made by the players should result in memories (lore records) for their characters, the goal of this app is to support similar apps, this is meant to be a platform for RPG characters but not the app where the RPG sistems and sessions are played/managed.
 
-## `/characters/new` — Create Character
+Todo:
+ - [ ] Lore tab list records
+ - [ ] Activity tab list records
+ - [ ] Log tab list records
 
-**Step 0 — Gemini API Key**
+Lore records should have a title, an optional (AI generated) image and a markdown content.
+Activity and log records should only be about the title, all of them should be timestamped (preferably using ISO).
 
-On load, if no key exists in IndexedDB, a modal blocks the page:
+Once we have records tracked we should then be able to add the records to a questline, the record should have an optional questline attribute to keep track of multi-mission questlines which will be useful to grouping history of records (lore, activity and log) of a character in a specific context.
 
-```
-Enter your Gemini API Key
-[input]
-Stored only on your device. Never sent to our servers.
-[Save]
-```
+All apps built for RPG gaming sessions should strive to focus the gaming sessions in questlines: e.g the adventurer's guild app should combine multiple missions/sessions into a single questline, but other apps such as the card arena (an app where players make card decks with their characters to play battle sessions) should also mark each sessions (e.g. dungeon crawl card session) into a questline in order to track the character notable doings, (level-up), gear, treasure, items, etc.
 
-Stored in IndexedDB via the existing `asasvirtuais/indexed-interface` Dexie instance, in a separate `settings` store.
+App ideas:
 
-**Step 1 — Seed**
+**Adventurer's Guild**
 
-```
-Name        [NameField]
-Label       [LabelField]
-Definition  [DefinitionField]
-[Generate]
-```
+Narrators post missions with questlines and players can join them with their characters. The missions reward characters with experience, gold coins, downtime points and treasure points which can then be spent to level-up, buy gear, craft items as well as obtain rare items. The records get tracked by the questline which are recorded forever (as long as the app exists). The goal is to facilitate gameplay by allowing players to prepare for sessions and track their progress in a single place, with log and activity records being automated by the app interface (allowing to track purchases and downtime activity) but also allowing narrators to write down the inspiring moments of the session into the character's lore, keeping everything connected through the questline then displaying it all for everyone to see, generating images to tell the story players made together.
 
-**Step 2 — Generate**
-
-On Generate, client-side call via Vercel AI SDK `generateObject` with the Gemini key. Enforced output schema:
-
-```typescript
-{
-  details: string,      // full character sheet prose
-  notes: string[],      // 5-8 traits, observations, abilities, warnings
-  image: {
-    alt: string,        // visual description that doubles as generation prompt
-    url: string,        // populated after image generation step
-  }
-}
-```
-
-After text generation, `image.alt` is passed to Gemini Imagen for portrait generation (3:4). Result uploaded to Vercel Blob. `image.url` populated. Done.
-
-**Step 3 — Review**
-
-All fields populate a `CreateCharacter` form with `defaults` prop. Author reviews and edits. `ImageField` shows the portrait with the alt text editable — editing alt and regenerating replaces the image.
-
-**Step 4 — Save**
-
-Character saved with `owner: null`, `author: currentUserId`. Author lands on `/characters/[id]` and sees the gift link.
-
----
-
-## `/characters/[id]` — Character Page
-
-Uses `SingleProvider` wrapping `SingleCharacter`.
-
-**Layout:**
-
-```
-[Portrait 3:4]    Name
-                  Label
-                  Definition
-                  [Chat with Character]
-
-Sheet | Notes | Lore | Activity | Logs | Gallery
-(tab content)
-```
-
-- **Sheet** — `details` prose
-- **Notes** — toggleable `notes[]` list
-- **Lore** — records where `type === 'lore'`, chronological. Empty: *"No records yet. Your story is waiting to be written."*
-- **Activity** — records where `type === 'activity'`
-- **Logs** — records where `type === 'log'`
-- **Gallery** — image grid, portrait first
-
-Owner sees all fields inline-editable via `UpdateCharacter`. Non-owner sees read-only `SingleCharacter`.
-
-**Claim flow — `?claim` param**
-
-When URL contains `?claim`, a modal overlays the character page:
-
-```
-[Portrait]
-You have been gifted a character.
-Name — Label
-Definition
-[Claim this Character]
-```
-
-Claim triggers Auth0 login/signup. On return, `owner` set to authenticated userId. `?claim` removed. User sees their character as owner.
-
----
-
-## `/characters/[id]/chat` — Placeholder
-
-Empty page. Full spec separate.
+A key component of the Adventurer's Guild app would be the mission wizard to inspire/auxiliate narrators in the creation of missions for players, this shouldn't be an additional overhead, but a tool that really incentives narrators to create missions for players. Additionally, the possibility of creating the characters necessary for a one-shot questline/session is an interesting way to get players together, inspired narrators would be able to invite qualified players by gifting them with the characters in this platform which could later be kept for later sessions/one-shots/gameplays.

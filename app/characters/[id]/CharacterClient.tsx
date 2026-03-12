@@ -19,6 +19,7 @@ import {
     TextInput,
     ActionIcon,
     Group,
+    TypographyStylesProvider,
 } from '@mantine/core'
 import { IconSparkles, IconEdit, IconCheck, IconX, IconEye, IconMarkdown, IconPlus, IconTrash } from '@tabler/icons-react'
 import ReactMarkdown from 'react-markdown'
@@ -185,19 +186,19 @@ function EditableSheet({ id, value, isOwner }: { id: string, value: string, isOw
                             </Stack>
                         </Card>
 
-                        <Card withBorder p="md" radius="md">
-                            <Stack gap="sm">
-                                <Group gap={6}>
-                                    <IconEye size={16} opacity={0.6} />
-                                    <Text size="xs" fw={600} tt="uppercase" c="dimmed">Preview</Text>
-                                </Group>
-                                <Box p="sm" style={{ lineHeight: 1.7 }}>
-                                    <div className="markdown-content">
+                        <Box p="md">
+                             <Stack gap="sm">
+                                 <Group gap={6}>
+                                     <IconEye size={16} opacity={0.6} />
+                                     <Text size="xs" fw={600} tt="uppercase" c="dimmed">Preview</Text>
+                                 </Group>
+                                 <TypographyStylesProvider>
+                                    <div className="markdown-content" style={{ lineHeight: 1.7 }}>
                                         <ReactMarkdown>{fields.details || '*Preview will appear here as you type...*'}</ReactMarkdown>
                                     </div>
-                                </Box>
-                            </Stack>
-                        </Card>
+                                 </TypographyStylesProvider>
+                             </Stack>
+                         </Box>
 
                         <Group justify="flex-end">
                             <Button variant="subtle" color="gray" onClick={() => setEditing(false)}>Cancel</Button>
@@ -218,11 +219,11 @@ function EditableSheet({ id, value, isOwner }: { id: string, value: string, isOw
                     </Button>
                 </Group>
             )}
-            <Card withBorder p="md" radius="md">
+            <TypographyStylesProvider>
                 <div className="markdown-content" style={{ lineHeight: 1.7 }}>
                     <ReactMarkdown>{value || 'No character sheet yet.'}</ReactMarkdown>
                 </div>
-            </Card>
+            </TypographyStylesProvider>
         </Stack>
     )
 }
