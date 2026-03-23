@@ -21,14 +21,202 @@ import {
     Group,
     TypographyStylesProvider,
 } from '@mantine/core'
-import { IconSparkles, IconEdit, IconCheck, IconX, IconEye, IconMarkdown, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconSparkles, IconEdit, IconCheck, IconX, IconEye, IconMarkdown, IconPlus, IconTrash, IconHistory, IconBook, IconReceipt } from '@tabler/icons-react'
 import ReactMarkdown from 'react-markdown'
-import { SingleProvider, useSingle, UpdateForm, useTable } from 'asasvirtuais/react-interface'
+import { SingleProvider, useSingle, UpdateForm, useTable, CreateForm } from 'asasvirtuais/react-interface'
 import { schema, type Character } from '@/app/characters'
 import { useUser } from '@auth0/nextjs-auth0/client'
 import { useCharacter } from '@/app/characters/provider'
+import { useRecords } from '@/app/records/provider'
+import { schema as recordsSchema } from '@/app/records'
 import { notifications } from '@mantine/notifications'
 import { useRouter } from 'next/navigation'
+
+// --- Records Components ---
+
+function RecordCard({ record, isOwner }: { record: any, isOwner: boolean }) {
+    const { remove } = useRecords()
+    
+    const handleDelete = async () => {
+        if (!confirm('Delete this record?')) return
+        try {
+            await remove.trigger({ id: record.id })
+            notifications.show({ title: 'Record deleted', message: 'The record was removed.', color: 'gray' })
+        } catch (error: any) {
+            notifications.show({ title: 'Error', message: error.message, color: 'red' })
+        }
+    }
+
+    return (
+        <Card withBorder radius="md" p="md" mb="sm">
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start">
+                    <Stack gap={2}>
+                        <Group gap="xs">
+                            <Text fw={600} size="md">{record.title}</Text>
+                            {record.questline && (
+                                <Badge variant="dot" color="blue" size="xs">{record.questline}</Badge>
+                            )}
+                        </Group>
+                        <Text size="xs" c="dimmed">{new Date(record.datetime).toLocaleString()}</Text>
+                    </Stack>
+                    {isOwner && (
+                        <ActionIcon variant="subtle" color="red" size="sm" onClick={handleDelete}>
+                            <IconTrash size={14} />
+                        </ActionIcon>
+                    )}
+                </Group>
+
+                {record.type === 'lore' && record.image?.url && (
+                    <Image 
+                        src={record.image.url} 
+                        alt={record.image.alt} 
+                        radius="md" 
+                        mah={200} 
+                        fit="cover" 
+                        style={{ border: '1px solid var(--mantine-color-dark-4)' }}
+                    />
+                )}
+
+                {record.content && (
+                    <TypographyStylesProvider>
+                        <div className="markdown-content" style={{ fontSize: '14px', lineHeight: 1.6 }}>
+                            <ReactMarkdown>{record.content}</ReactMarkdown>
+                        </div>
+                    </TypographyStylesProvider>
+                )}
+            </Stack>
+        </Card>
+    )
+}
+
+function RecordList({ characterId, type, isOwner }: { characterId: string, type: string, isOwner: boolean }) {
+    const { array: allRecords, loading } = useRecords()
+    const records = allRecords
+        .filter(r => r.character === characterId && r.type === type)
+        .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
+
+    if (loading) return <Stack gap="sm">{[1, 2].map(i => <Skeleton key={i} height={100} radius="md" />)}</Stack>
+
+    if (records.length === 0) {
+        return (
+            <Center py="xl">
+                <Stack align="center" gap="xs">
+                    <Text c="dimmed" size="sm" fs="italic">No {type} records yet.</Text>
+                </Stack>
+            </Center>
+        )
+    }
+
+    return (
+        <Stack gap="sm">
+            {records.map(record => (
+                <RecordCard key={record.id} record={record} isOwner={isOwner} />
+            ))}
+        </Stack>
+    )
+}
+
+function AddRecordButton({ characterId, type, isOwner }: { characterId: string, type: 'lore' | 'activity' | 'log', isOwner: boolean }) {
+    const [opened, setOpened] = React.useState(false)
+
+    if (!isOwner) return null
+
+    const labels = {
+        lore: { title: 'Add Lore Record', icon: <IconBook size={16} /> },
+        activity: { title: 'Record Activity', icon: <IconHistory size={16} /> },
+        log: { title: 'Log Transaction', icon: <IconReceipt size={16} /> }
+    }
+
+    return (
+        <>
+            <Button 
+                variant="light" 
+                color="violet" 
+                size="xs" 
+                leftSection={<IconPlus size={14} />}
+                onClick={() => setOpened(true)}
+                mb="md"
+            >
+                {labels[type].title}
+            </Button>
+
+            <Modal 
+                opened={opened} 
+                onClose={() => setOpened(false)} 
+                title={labels[type].title}
+                centered
+                size="lg"
+            >
+                <CreateForm 
+                    table="records" 
+                    schema={recordsSchema} 
+                    onSuccess={() => {
+                        setOpened(false)
+                        notifications.show({ title: 'Record added!', message: 'Your story has been updated.', color: 'green' })
+                    }} 
+                    defaults={{ character: characterId, type, title: '' }}
+                >
+                    {({ fields, setField, submit, loading }) => (
+                        <Stack gap="md">
+                            <TextInput 
+                                label="Title" 
+                                placeholder={type === 'lore' ? "e.g. The Battle of Green Valley" : "What happened?"}
+                                value={fields.title} 
+                                onChange={(e) => setField('title', e.target.value)}
+                                required
+                                data-autofocus
+                            />
+                            
+                            <TextInput 
+                                label="Questline (Optional)" 
+                                placeholder="e.g. Main Story, Side Quest: The Lost Ring"
+                                value={fields.questline || ''} 
+                                onChange={(e) => setField('questline', e.target.value)}
+                            />
+
+                            {type === 'lore' && (
+                                <>
+                                    <Textarea 
+                                        label="Description" 
+                                        placeholder="Tell the story..."
+                                        value={fields.content || ''} 
+                                        onChange={(e) => setField('content', e.target.value)}
+                                        minRows={4}
+                                        autosize
+                                    />
+                                    {/* TODO: Add Image Generation here as per roadmap */}
+                                    <TextInput 
+                                        label="Image URL (Optional)" 
+                                        placeholder="https://..."
+                                        value={fields.image?.url || ''} 
+                                        onChange={(e) => setField('image', { ...fields.image, url: e.target.value, alt: fields.image?.alt || fields.title })}
+                                    />
+                                </>
+                            ) : (
+                                <Textarea 
+                                    label="Additional Details (Optional)" 
+                                    placeholder="Any more details?"
+                                    value={fields.content || ''} 
+                                    onChange={(e) => setField('content', e.target.value)}
+                                    minRows={2}
+                                    autosize
+                                />
+                            )}
+
+                            <Group justify="flex-end">
+                                <Button variant="subtle" onClick={() => setOpened(false)}>Cancel</Button>
+                                <Button color="violet" onClick={() => submit()} loading={loading} disabled={!fields.title}>
+                                    Save Record
+                                </Button>
+                            </Group>
+                        </Stack>
+                    )}
+                </CreateForm>
+            </Modal>
+        </>
+    )
+}
 
 // --- Helper Components for Inline Editing ---
 
@@ -365,6 +553,11 @@ function CharacterSheet({
     }
 
     const character = single
+    const { array: allRecords } = useRecords()
+    const characterRecords = allRecords.filter(r => r.character === character.id)
+    const loreCount = characterRecords.filter(r => r.type === 'lore').length
+    const activityCount = characterRecords.filter(r => r.type === 'activity').length
+    const logCount = characterRecords.filter(r => r.type === 'log').length
 
     return (
         <Container size="sm" py="xl">
@@ -490,9 +683,9 @@ function CharacterSheet({
                         <Tabs.Tab value="notes">
                             Notes {character.notes?.length ? `(${character.notes.length})` : ''}
                         </Tabs.Tab>
-                        <Tabs.Tab value="lore">Lore</Tabs.Tab>
-                        <Tabs.Tab value="activity">Activity</Tabs.Tab>
-                        <Tabs.Tab value="logs">Logs</Tabs.Tab>
+                        <Tabs.Tab value="lore">Lore {loreCount ? `(${loreCount})` : ''}</Tabs.Tab>
+                        <Tabs.Tab value="activity">Activity {activityCount ? `(${activityCount})` : ''}</Tabs.Tab>
+                        <Tabs.Tab value="logs">Logs {logCount ? `(${logCount})` : ''}</Tabs.Tab>
                         <Tabs.Tab value="gallery">Gallery</Tabs.Tab>
                     </Tabs.List>
 
@@ -513,21 +706,18 @@ function CharacterSheet({
                     </Tabs.Panel>
 
                     <Tabs.Panel value="lore" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No records yet. Your story is waiting to be written.
-                        </Text>
+                        <AddRecordButton characterId={character.id} type="lore" isOwner={isOwner} />
+                        <RecordList characterId={character.id} type="lore" isOwner={isOwner} />
                     </Tabs.Panel>
 
                     <Tabs.Panel value="activity" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No activity recorded.
-                        </Text>
+                        <AddRecordButton characterId={character.id} type="activity" isOwner={isOwner} />
+                        <RecordList characterId={character.id} type="activity" isOwner={isOwner} />
                     </Tabs.Panel>
 
                     <Tabs.Panel value="logs" pt="md">
-                        <Text c="dimmed" size="sm" ta="center" py="xl" fs="italic">
-                            No logs recorded.
-                        </Text>
+                        <AddRecordButton characterId={character.id} type="log" isOwner={isOwner} />
+                        <RecordList characterId={character.id} type="log" isOwner={isOwner} />
                     </Tabs.Panel>
 
                     <Tabs.Panel value="gallery" pt="md">
